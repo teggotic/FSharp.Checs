@@ -41,12 +41,12 @@ let update (msg: Msg) (state: State) : State =
                 let (almostValidMoves, almostValidAttacks) =
                     (getPossibleMoves state.board newI).Value
 
-                
-                    // let tmp =
-                    //     XYToI (7, 2)
-                    //     |> validateActualMove state.board (newI)
-                    // ()
-                
+
+                // let tmp =
+                //     XYToI (7, 2)
+                //     |> validateActualMove state.board (newI)
+                // ()
+
                 let validMoves =
                     almostValidMoves
                     |> Array.map XYToI
@@ -56,7 +56,7 @@ let update (msg: Msg) (state: State) : State =
                     almostValidAttacks
                     |> Array.map XYToI
                     |> Array.filter (validateActualMove state.board newI)
-                
+
 
                 let selectedCell =
                     { i = newI
@@ -75,9 +75,9 @@ let update (msg: Msg) (state: State) : State =
                   selectedCell = None
                   side =
                       if state.side = White then
-                        Black
+                          Black
                       else
-                        White
+                          White
                   board =
                       { cells =
                             [| for i in 0 .. 63 ->

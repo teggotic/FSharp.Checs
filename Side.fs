@@ -1,3 +1,5 @@
 namespace Chess
 
-type Side = White | Black
+type Side =
+    | White
+    | Black

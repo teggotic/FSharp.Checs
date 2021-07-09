@@ -2,21 +2,18 @@ namespace Chess
 
 open Chess
 
-type CellState = {
-    side: Side
-    figure: Figure
-}
+type CellState = { side: Side; figure: Figure }
 
 module CellState =
     let getIconPath (cellState: CellState) =
         let figName = cellState.figure.ToString().ToLower()
         let sideName = cellState.side.ToString().ToLower()
-        $"avares://Chess/Assets/icons/{figName}-{sideName}.png" 
+        $"avares://Chess/Assets/icons/{figName}-{sideName}.png"
 
 type Cell =
     | EmptyCell
     | Cell of CellState
-    
+
 module Cell =
     let getCellByIndex i side =
         let fig =
@@ -37,20 +34,16 @@ module Cell =
                 | 4 -> Some King
                 | 3 -> Some Queen
                 | _ -> failwith ""
+
         match fig with
-        | Some f ->
-            Cell {side = side; figure = f}
-        | None ->
-            EmptyCell
-            
+        | Some f -> Cell { side = side; figure = f }
+        | None -> EmptyCell
+
     let getIconPath cell =
         match cell with
-        | EmptyCell ->
-            None
-        | Cell cellState ->
-            CellState.getIconPath cellState
-            |> Some
-            
+        | EmptyCell -> None
+        | Cell cellState -> CellState.getIconPath cellState |> Some
+
     // let getIconPath = function
     //     | EmptyCell ->
     //         None
@@ -68,26 +61,26 @@ module Cell =
     //             | White -> "w"
     //             | Black -> "b"
     //         Some $"icons/{iconName}{sideChar}.png"
-        
-    let getAllMoves = function
-        | EmptyCell ->
-            None
-        | Cell {side = side; figure = fig} ->
+
+    let getAllMoves =
+        function
+        | EmptyCell -> None
+        | Cell { side = side; figure = fig } ->
             let rotateY =
-                Array.map (fun (x, y) -> (x, -y))
-                |> Array.map
+                Array.map (fun (x, y) -> (x, -y)) |> Array.map
+
             let moves, attacks = Figure.getDirections fig
-                
+
             let moves =
                 if fig = Pawn && side = White then
                     rotateY moves
                 else
                     moves
-                   
+
             let attacks =
                 if fig = Pawn && side = White then
                     rotateY attacks
                 else
-                   attacks
-                
-            Some (moves, attacks)
+                    attacks
+
+            Some(moves, attacks)
