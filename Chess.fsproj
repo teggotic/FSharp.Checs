@@ -6,17 +6,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Side.fs" />
-        <Compile Include="CoordUtils.fs" />
+        <Compile Include="OptionalBuilder.fs" />
         <Compile Include="MoveDirection.fs" />
-        <Compile Include="Figure.fs" />
-        <Compile Include="Cell.fs" />
-        <Compile Include="Board.fs" />
-        <Compile Include="BoardComponent.fs" />
-        <Compile Include="Program.fs" />
+        <Compile Include="Types.fs" />
+        <Compile Include="IChessRules.fs" />
     </ItemGroup>
-
-    <ItemGroup />
 
     <ItemGroup>
         <AvaloniaResource Include="Assets/**" />
@@ -31,6 +25,16 @@
 
     <ItemGroup>
         <EmbeddedResource Remove=".template.config\**" />
+        <EmbeddedResource Remove="Previos\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Include="Classic\Config.fs" />
+      <Compile Include="Classic\Helpers.fs" />
+      <Compile Include="Classic\Figure.fs" />
+      <Compile Include="Classic\Rules.fs" />
+      <Compile Include="BoardComponent.fs" />
+      <Compile Include="Program.fs" />
     </ItemGroup>
 
 </Project>
