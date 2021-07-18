@@ -9,68 +9,53 @@ open Avalonia.Controls.Primitives
 open Avalonia.Media.Imaging
 open Avalonia.Platform
 open Chess
+open Types
 open Board
 
 type SelectedCell =
-    { i: int
-      cellState: CellState
-      moves: int []
-      attacks: int [] }
+    { coords: int * int
+      actions: (int * int) [] }
 
 type State =
     { side: Side
       selectedCell: SelectedCell option
-      board: Board }
+      board: Board
+      rules: IChessRules }
 
 let init =
+    let rules = Classic.Rules() :> IChessRules
+
     { side = White
       selectedCell = None
-      board = Board.initialBoard }
+      rules = rules
+      board = rules.InitialBoard }
 
-type Msg = CellClicked of int
+type Msg = CellClicked of (int * int)
 
 let update (msg: Msg) (state: State) : State =
-    let trySelectNewCell newI =
-        let cell = state.board.cells.[newI]
+    let trySelectNewCell newCoords =
+        let cell =
+            getCellByCoords state.board.Cells newCoords
 
         match cell with
-        | EmptyCell -> state
-        | Cell cellState ->
-            if cellState.side = state.side then
+        | None -> state
+        | Some figure ->
+            if figure.Side = state.side then
 
-                let (almostValidMoves, almostValidAttacks) =
-                    (getPossibleMoves state.board newI).Value
-
-
-                // let tmp =
-                //     XYToI (7, 2)
-                //     |> validateActualMove state.board (newI)
-                // ()
-
-                let validMoves =
-                    almostValidMoves
-                    |> Array.map XYToI
-                    |> Array.filter (validateActualMove state.board newI)
-
-                let validAttacks =
-                    almostValidAttacks
-                    |> Array.map XYToI
-                    |> Array.filter (validateActualMove state.board newI)
-
+                let actions =
+                    state.rules.GetActions state.board newCoords
 
                 let selectedCell =
-                    { i = newI
-                      cellState = cellState
-                      moves = validMoves
-                      attacks = validAttacks }
+                    { coords = newCoords
+                      actions = actions }
 
                 { state with
                       selectedCell = Some selectedCell }
             else
                 state
 
-    let tryMove positions selectedCell newI =
-        if Array.contains newI positions then
+    let tryMove positions selectedCell newCoords =
+        if Array.contains newCoords positions then
             { state with
                   selectedCell = None
                   side =
@@ -79,34 +64,37 @@ let update (msg: Msg) (state: State) : State =
                       else
                           White
                   board =
-                      { cells =
-                            [| for i in 0 .. 63 ->
-                                   if i = selectedCell.i then
-                                       EmptyCell
-                                   else if i = newI then
-                                       state.board.cells.[selectedCell.i]
-                                   else
-                                       state.board.cells.[i] |] } }
+                      { Cells =
+                            [| for y in 0 .. 7 ->
+                                   [| for x in 0 .. 7 ->
+                                          if (x, y) = selectedCell.coords then
+                                              None
+                                          else if (x, y) = newCoords then
+                                              getCellByCoords state.board.Cells selectedCell.coords
+                                              |> Option.map (fun x -> {x with Moved = true})
+                                          else
+                                              getCellByCoords state.board.Cells (x, y) |] |] } }
         else
             state
 
     match msg with
-    | CellClicked newI ->
-        let cell = state.board.cells.[newI]
+    | CellClicked newCoords ->
+        let cell =
+            getCellByCoords state.board.Cells newCoords
 
         match state.selectedCell with
         | Some selectedCell ->
-            if newI = selectedCell.i then
+            if newCoords = selectedCell.coords then
                 { state with selectedCell = None }
             else
                 match cell with
-                | Cell { side = side } ->
+                | Some { Side = side } ->
                     if side = state.side then
-                        trySelectNewCell newI
+                        trySelectNewCell newCoords
                     else
-                        tryMove selectedCell.attacks selectedCell newI
-                | EmptyCell -> tryMove selectedCell.moves selectedCell newI
-        | None -> trySelectNewCell newI
+                        tryMove selectedCell.actions selectedCell newCoords
+                | None -> tryMove selectedCell.actions selectedCell newCoords
+        | None -> trySelectNewCell newCoords
 
 let assets =
     AvaloniaLocator.Current.GetService<IAssetLoader>()
@@ -116,65 +104,58 @@ let view (state: State) (dispatch) =
     UniformGrid.create [ UniformGrid.columns 8
                          UniformGrid.rows 8
                          UniformGrid.children (
-                             [ for i in 0 .. 63 ->
-                                   // let x = i % 8
-                                   // let y = i / 8
-                                   let attrs =
-                                       [ Button.margin 5.0
-                                         Button.onClick (fun _ -> dispatch (CellClicked i)) ]
+                             [ for y in 0 .. 7 do
+                                   for x in 0 .. 7 do
+                                       let attrs =
+                                           [ Button.margin 5.0
+                                             Button.onClick (fun _ -> dispatch (CellClicked(x, y))) ]
 
-                                   let cell = state.board.cells.[i]
+                                       let cell = getCellByCoords state.board.Cells (x, y)
 
-                                   let attrs =
-                                       match cell with
-                                       | EmptyCell -> attrs
-                                       | Cell cellState ->
-                                           [
-                                             // Button.content $"{cellState.figure}"
-                                             // Button.foreground $"{cellState.side}"
-                                             // let assetList = assets.GetAssets(Uri("avares://Chess"), Uri("avares://icons"))
-                                             // assetList
-                                             // |> Seq.toArray
-                                             // |> printfn "%A"
-                                             Button.content (
-                                                 Image.create [ new Bitmap(
-                                                                    assets.Open(Uri(CellState.getIconPath cellState))
-                                                                )
-                                                                |> Image.source ]
-                                             ) ]
-                                           |> List.append attrs
+                                       let attrs =
+                                           match cell with
+                                           | None -> attrs
+                                           | Some fig ->
+                                               [
+                                                 // Button.content $"{cellState.figure}"
+                                                 // Button.foreground $"{cellState.side}"
+                                                 // let assetList = assets.GetAssets(Uri("avares://Chess"), Uri("avares://icons"))
+                                                 // assetList
+                                                 // |> Seq.toArray
+                                                 // |> printfn "%A"
+                                                 Button.content (
+                                                     Image.create [ new Bitmap(assets.Open(Uri(Figure.getIconPath fig)))
+                                                                    |> Image.source ]
+                                                 ) ]
+                                               |> List.append attrs
 
-                                   let attrs =
-                                       state.selectedCell
-                                       |> Option.map
-                                           (fun selectedCell ->
-                                               let attrs =
-                                                   if selectedCell.i = i then
-                                                       [ Button.borderBrush "green"
-                                                         Button.borderThickness 4.0 ]
-                                                       |> List.append attrs
-                                                   else
-                                                       attrs
+                                       let attrs =
+                                           state.selectedCell
+                                           |> Option.map
+                                               (fun selectedCell ->
+                                                   let attrs =
+                                                       if selectedCell.coords = (x, y) then
+                                                           [ Button.borderBrush "green"
+                                                             Button.borderThickness 4.0 ]
+                                                           |> List.append attrs
+                                                       else
+                                                           attrs
 
-                                               let attrs =
-                                                   if Array.contains i selectedCell.moves then
-                                                       [ Button.borderBrush "blue"
-                                                         Button.borderThickness 4.0 ]
-                                                       |> List.append attrs
-                                                   else
-                                                       attrs
+                                                   let attrs =
+                                                       if Array.contains (x, y) selectedCell.actions then
+                                                           (if (getCellByCoords state.board.Cells (x, y)).IsNone then
+                                                                [ Button.borderBrush "blue"
+                                                                  Button.borderThickness 4.0 ]
+                                                            else
+                                                                [ Button.borderBrush "red"
+                                                                  Button.borderThickness 4.0 ])
+                                                           |> List.append attrs
+                                                       else
+                                                           attrs
 
-                                               let attrs =
-                                                   if Array.contains i selectedCell.attacks then
-                                                       [ Button.borderBrush "red"
-                                                         Button.borderThickness 4.0 ]
-                                                       |> List.append attrs
-                                                   else
-                                                       attrs
-
-                                               attrs)
-                                       |> Option.defaultValue attrs
+                                                   attrs)
+                                           |> Option.defaultValue attrs
 
 
-                                   Button.create attrs ]
+                                       Button.create attrs ]
                          ) ]
